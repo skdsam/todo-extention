@@ -1,0 +1,203 @@
+{
+  "name": "quick-notes",
+  "displayName": "Quick Notes",
+  "description": "A scratchpad for jotting down ideas, TODOs, and notes tied to your projects. Syncs via VS Code Settings Sync.",
+  "version": "1.0.0",
+  "publisher": "skdsam",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "todo",
+    "notes",
+    "projects",
+    "scratchpad",
+    "productivity"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "quickNotes",
+          "title": "Quick Notes",
+          "icon": "resources/notes-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "quickNotes": [
+        {
+          "id": "quickNotesView",
+          "name": "Projects & Notes",
+          "icon": "resources/notes-icon.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "quickNotes.addNote",
+        "title": "Add Note",
+        "icon": "$(add)"
+      },
+      {
+        "command": "quickNotes.editNote",
+        "title": "Edit Note",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "quickNotes.deleteNote",
+        "title": "Delete Note",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "quickNotes.toggleComplete",
+        "title": "Toggle Complete",
+        "icon": "$(check)"
+      },
+      {
+        "command": "quickNotes.setPriority",
+        "title": "Set Priority",
+        "icon": "$(flame)"
+      },
+      {
+        "command": "quickNotes.refresh",
+        "title": "Refresh Projects",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "quickNotes.removeStaleProject",
+        "title": "Remove Stale Project",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "quickNotes.archiveProject",
+        "title": "Archive Project",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "quickNotes.updateProjectPath",
+        "title": "Update Project Path",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "quickNotes.openProject",
+        "title": "Open Project",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "quickNotes.viewArchived",
+        "title": "View Archived Projects",
+        "icon": "$(archive)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "quickNotes.addNote",
+          "when": "view == quickNotesView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "quickNotes.refresh",
+          "when": "view == quickNotesView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "quickNotes.viewArchived",
+          "when": "view == quickNotesView",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "quickNotes.addNote",
+          "when": "view == quickNotesView && viewItem == project",
+          "group": "inline@1"
+        },
+        {
+          "command": "quickNotes.openProject",
+          "when": "view == quickNotesView && viewItem == project",
+          "group": "inline@2"
+        },
+        {
+          "command": "quickNotes.removeStaleProject",
+          "when": "view == quickNotesView && viewItem == staleProject",
+          "group": "context@1"
+        },
+        {
+          "command": "quickNotes.archiveProject",
+          "when": "view == quickNotesView && viewItem == staleProject",
+          "group": "context@2"
+        },
+        {
+          "command": "quickNotes.updateProjectPath",
+          "when": "view == quickNotesView && viewItem == staleProject",
+          "group": "context@3"
+        },
+        {
+          "command": "quickNotes.toggleComplete",
+          "when": "view == quickNotesView && viewItem == note",
+          "group": "inline@1"
+        },
+        {
+          "command": "quickNotes.editNote",
+          "when": "view == quickNotesView && viewItem == note",
+          "group": "inline@2"
+        },
+        {
+          "command": "quickNotes.deleteNote",
+          "when": "view == quickNotesView && viewItem == note",
+          "group": "inline@3"
+        },
+        {
+          "command": "quickNotes.setPriority",
+          "when": "view == quickNotesView && viewItem == note",
+          "group": "context@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Quick Notes",
+      "properties": {
+        "quickNotes.defaultPriority": {
+          "type": "string",
+          "default": "medium",
+          "enum": ["high", "medium", "low"],
+          "description": "Default priority for new notes"
+        },
+        "quickNotes.showCompletedNotes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show completed notes in the list"
+        },
+        "quickNotes.sortBy": {
+          "type": "string",
+          "default": "priority",
+          "enum": ["priority", "createdAt", "alphabetical"],
+          "description": "How to sort notes within a project"
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skdsam/todo-extention"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "echo 'No compile step needed'",
+    "watch": "echo 'No watch step needed'",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^2.22.0"
+  }
+}
