@@ -1,5 +1,5 @@
 const vscode = require('vscode');
-const { v4: uuidv4 } = require('uuid');
+
 
 /**
  * Manages notes data using VS Code globalState for Settings Sync compatibility
@@ -33,14 +33,13 @@ class NotesDataManager {
      */
     ensureProject(projectId, projectInfo) {
         const data = this.getData();
-        
+
         if (!data.projects[projectId]) {
             data.projects[projectId] = {
                 ...projectInfo,
                 notes: [],
                 createdAt: new Date().toISOString()
             };
-            this.saveData(data);
         } else {
             // Update project info but keep notes
             const existingNotes = data.projects[projectId].notes;
@@ -49,8 +48,8 @@ class NotesDataManager {
                 ...projectInfo,
                 notes: existingNotes
             };
-            this.saveData(data);
         }
+        this.saveData(data);
     }
 
     /**
@@ -74,11 +73,11 @@ class NotesDataManager {
      */
     async addNote(projectId, noteData) {
         const data = this.getData();
-        
+
         if (!data.projects[projectId]) {
             throw new Error('Project not found');
         }
-        
+
         const note = {
             id: this.generateId(),
             content: noteData.content,
@@ -87,10 +86,10 @@ class NotesDataManager {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        
+
         data.projects[projectId].notes.push(note);
         await this.saveData(data);
-        
+
         return note;
     }
 
@@ -99,25 +98,25 @@ class NotesDataManager {
      */
     async updateNote(projectId, noteId, updates) {
         const data = this.getData();
-        
+
         if (!data.projects[projectId]) {
             throw new Error('Project not found');
         }
-        
+
         const noteIndex = data.projects[projectId].notes.findIndex(n => n.id === noteId);
-        
+
         if (noteIndex === -1) {
             throw new Error('Note not found');
         }
-        
+
         data.projects[projectId].notes[noteIndex] = {
             ...data.projects[projectId].notes[noteIndex],
             ...updates,
             updatedAt: new Date().toISOString()
         };
-        
+
         await this.saveData(data);
-        
+
         return data.projects[projectId].notes[noteIndex];
     }
 
@@ -126,15 +125,15 @@ class NotesDataManager {
      */
     async deleteNote(projectId, noteId) {
         const data = this.getData();
-        
+
         if (!data.projects[projectId]) {
             throw new Error('Project not found');
         }
-        
+
         data.projects[projectId].notes = data.projects[projectId].notes.filter(
             n => n.id !== noteId
         );
-        
+
         await this.saveData(data);
     }
 
@@ -152,7 +151,7 @@ class NotesDataManager {
      */
     async archiveProject(projectId) {
         const data = this.getData();
-        
+
         if (data.projects[projectId]) {
             data.archivedProjects[projectId] = {
                 ...data.projects[projectId],
@@ -168,12 +167,13 @@ class NotesDataManager {
      */
     async restoreProject(projectId) {
         const data = this.getData();
-        
+
         if (data.archivedProjects[projectId]) {
-            data.projects[projectId] = data.archivedProjects[projectId];
-            delete data.archivedProjects[projectId].archivedAt;
+            data.projects[projectId] = {
+                ...data.archivedProjects[projectId]
+            };
+            delete data.projects[projectId].archivedAt;
             delete data.archivedProjects[projectId];
-            data.projects[projectId] = data.archivedProjects[projectId];
             await this.saveData(data);
         }
     }
@@ -200,7 +200,7 @@ class NotesDataManager {
      */
     async updateProjectPath(projectId, newPath) {
         const data = this.getData();
-        
+
         if (data.projects[projectId]) {
             data.projects[projectId].path = newPath;
             await this.saveData(data);
@@ -216,4 +216,6 @@ class NotesDataManager {
     }
 }
 
-module.exports = { NotesDataManager };
+module.exports = {
+    NotesDataManager
+};
