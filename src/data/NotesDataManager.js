@@ -8,6 +8,14 @@ class NotesDataManager {
     constructor(context) {
         this.context = context;
         this.STORAGE_KEY = 'quickNotes.data';
+        this.syncManager = null;
+    }
+
+    /**
+     * Set the sync manager for GitHub sync
+     */
+    setSyncManager(syncManager) {
+        this.syncManager = syncManager;
     }
 
     /**
@@ -22,9 +30,30 @@ class NotesDataManager {
     }
 
     /**
-     * Save all data
+     * Save all data (and trigger background sync if configured)
      */
     async saveData(data) {
+        await this.context.globalState.update(this.STORAGE_KEY, data);
+
+        // Trigger background push to GitHub (fire-and-forget)
+        if (this.syncManager && this.syncManager.isConfigured()) {
+            this.syncManager.push(data).catch(err => {
+                console.error('Background sync push failed:', err.message);
+            });
+        }
+    }
+
+    /**
+     * Export all data for sync
+     */
+    exportData() {
+        return this.getData();
+    }
+
+    /**
+     * Import data from sync (replaces local state)
+     */
+    async importData(data) {
         await this.context.globalState.update(this.STORAGE_KEY, data);
     }
 

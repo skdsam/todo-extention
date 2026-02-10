@@ -1,8 +1,8 @@
 {
   "name": "quick-notes",
   "displayName": "Quick Notes",
-  "description": "A scratchpad for jotting down ideas, TODOs, and notes tied to your projects. Syncs via VS Code Settings Sync.",
-  "version": "1.0.0",
+  "description": "A scratchpad for jotting down ideas, TODOs, and notes tied to your projects. Syncs across devices via GitHub.",
+  "version": "1.1.0",
   "publisher": "skdsam",
   "engines": {
     "vscode": "^1.85.0"
@@ -96,6 +96,11 @@
         "command": "quickNotes.viewArchived",
         "title": "View Archived Projects",
         "icon": "$(archive)"
+      },
+      {
+        "command": "quickNotes.syncNow",
+        "title": "Sync Notes with GitHub",
+        "icon": "$(sync)"
       }
     ],
     "menus": {
@@ -114,6 +119,11 @@
           "command": "quickNotes.viewArchived",
           "when": "view == quickNotesView",
           "group": "navigation@3"
+        },
+        {
+          "command": "quickNotes.syncNow",
+          "when": "view == quickNotesView",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -183,6 +193,27 @@
           "default": "priority",
           "enum": ["priority", "createdAt", "alphabetical"],
           "description": "How to sort notes within a project"
+        },
+        "quickNotes.sync.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GitHub sync for notes"
+        },
+        "quickNotes.sync.repoUrl": {
+          "type": "string",
+          "default": "https://github.com/skdsam/todo-extention-data",
+          "description": "GitHub repository URL for syncing notes"
+        },
+        "quickNotes.sync.token": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub Personal Access Token (PAT) with repo scope for sync"
+        },
+        "quickNotes.sync.autoSyncInterval": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "description": "Auto-sync interval in minutes (0 to disable auto-sync)"
         }
       }
     }

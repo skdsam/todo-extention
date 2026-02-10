@@ -8,6 +8,9 @@ const {
 const {
     ProjectTracker
 } = require('./integrations/ProjectTracker');
+const {
+    GitHubSyncManager
+} = require('./sync/GitHubSyncManager');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -18,6 +21,60 @@ async function activate(context) {
     try {
         // Initialize the data manager (uses VS Code sync-compatible globalState)
         const dataManager = new NotesDataManager(context);
+
+        // Initialize GitHub sync manager
+        const syncManager = new GitHubSyncManager(context);
+        dataManager.setSyncManager(syncManager);
+
+        // Create sync status bar item
+        const syncStatusBar = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Right, 100
+        );
+        syncStatusBar.command = 'quickNotes.syncNow';
+        updateSyncStatusBar(syncStatusBar, 'idle');
+        syncStatusBar.show();
+
+        // Listen for sync status changes
+        syncManager.onSyncStatusChanged((status) => {
+            updateSyncStatusBar(syncStatusBar, status);
+        });
+
+        // Pull remote data on activation (merge with local)
+        if (syncManager.isConfigured()) {
+            try {
+                const remoteData = await syncManager.pull();
+                if (remoteData) {
+                    const localData = dataManager.exportData();
+                    const merged = syncManager.mergeData(localData, remoteData);
+                    await dataManager.importData(merged);
+                    updateSyncStatusBar(syncStatusBar, 'synced');
+                    console.log('Quick Notes: Initial sync complete');
+                }
+            } catch (err) {
+                console.error('Quick Notes: Initial sync failed:', err.message);
+                updateSyncStatusBar(syncStatusBar, 'error');
+            }
+        } else {
+            updateSyncStatusBar(syncStatusBar, 'not-configured');
+        }
+
+        // Set up auto-sync interval
+        const config = vscode.workspace.getConfiguration('quickNotes.sync');
+        const intervalMinutes = config.get('autoSyncInterval', 5);
+        let autoSyncTimer = null;
+
+        if (syncManager.isConfigured() && intervalMinutes > 0) {
+            autoSyncTimer = setInterval(async () => {
+                try {
+                    const localData = dataManager.exportData();
+                    const merged = await syncManager.sync(localData);
+                    await dataManager.importData(merged);
+                    quickNotesProvider.refresh();
+                } catch (err) {
+                    console.error('Quick Notes: Auto-sync failed:', err.message);
+                }
+            }, intervalMinutes * 60 * 1000);
+        }
 
         // Initialize project tracker integration
         const projectTracker = new ProjectTracker();
@@ -265,10 +322,48 @@ async function activate(context) {
                 } catch (err) {
                     vscode.window.showErrorMessage(`Failed to view archived: ${err.message}`);
                 }
+            }),
+
+            vscode.commands.registerCommand('quickNotes.syncNow', async () => {
+                if (!syncManager.isConfigured()) {
+                    const action = await vscode.window.showWarningMessage(
+                        'GitHub sync is not configured. Set your repo URL and token in settings.',
+                        'Open Settings'
+                    );
+                    if (action === 'Open Settings') {
+                        vscode.commands.executeCommand(
+                            'workbench.action.openSettings',
+                            'quickNotes.sync'
+                        );
+                    }
+                    return;
+                }
+
+                try {
+                    updateSyncStatusBar(syncStatusBar, 'syncing');
+                    const localData = dataManager.exportData();
+                    const merged = await syncManager.sync(localData);
+                    await dataManager.importData(merged);
+                    quickNotesProvider.refresh();
+                    updateSyncStatusBar(syncStatusBar, 'synced');
+                    vscode.window.showInformationMessage('Quick Notes synced successfully!');
+                } catch (err) {
+                    updateSyncStatusBar(syncStatusBar, 'error');
+                    vscode.window.showErrorMessage(`Sync failed: ${err.message}`);
+                }
             })
         ];
 
-        context.subscriptions.push(treeView, ...commands);
+        context.subscriptions.push(treeView, syncStatusBar, ...commands);
+
+        // Clean up auto-sync timer on deactivation
+        context.subscriptions.push({
+            dispose: () => {
+                if (autoSyncTimer) {
+                    clearInterval(autoSyncTimer);
+                }
+            }
+        });
 
         // Initial refresh to load projects
         await quickNotesProvider.refreshProjects();
@@ -304,6 +399,34 @@ async function selectProject(provider) {
 
 function deactivate() {
     console.log('Quick Notes extension deactivated');
+}
+
+/**
+ * Update the sync status bar display
+ */
+function updateSyncStatusBar(statusBar, status) {
+    switch (status) {
+        case 'syncing':
+            statusBar.text = '$(sync~spin) Syncing...';
+            statusBar.tooltip = 'Quick Notes: Syncing with GitHub...';
+            break;
+        case 'synced':
+            statusBar.text = '$(check) Notes Synced';
+            statusBar.tooltip = `Quick Notes: Synced at ${new Date().toLocaleTimeString()}`;
+            break;
+        case 'error':
+            statusBar.text = '$(warning) Sync Error';
+            statusBar.tooltip = 'Quick Notes: Sync failed. Click to retry.';
+            break;
+        case 'not-configured':
+            statusBar.text = '$(cloud-upload) Setup Sync';
+            statusBar.tooltip = 'Quick Notes: Click to configure GitHub sync';
+            break;
+        default:
+            statusBar.text = '$(cloud) Notes Sync';
+            statusBar.tooltip = 'Quick Notes: Click to sync now';
+            break;
+    }
 }
 
 module.exports = {
