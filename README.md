@@ -22,15 +22,18 @@ Organize your notes by priority:
 - Visual warning indicator on stale projects
 - Options to **Archive**, **Remove**, or **Update Path** for stale projects
 
-### 🔄 **VS Code Settings Sync**
-- Notes are stored in VS Code's `globalState`
-- Automatically syncs across all your machines when VS Code Settings Sync is enabled
-- No additional setup required!
+### 🔄 **Sync Options**
+- **VS Code Settings Sync**: Enabled by default! Your notes are stored in `globalState` and sync automatically across VS Code instances.
+- **GitHub Sync**: Optional secondary sync to a GitHub repository. Great for viewing your notes on GitHub or sharing across accounts.
+  - Go to Settings (`Ctrl+,`) and search for `quickNotes.sync`.
+  - Enter your GitHub Repository URL (e.g., `https://github.com/skdsam/todo-extention-data`).
+  - Enter a **Personal Access Token (PAT)** with `repo` scope.
+  - Use the cloud icon in the status bar or the sync button in the sidebar to trigger a sync.
 
 ### 📦 **Archive System**
-- Archive projects with their notes preserved
-- Restore archived projects at any time
-- View and manage archived notes
+- Archive projects with their notes preserved.
+- Restore archived projects at any time.
+- View and manage archived notes via the **View Archived** command.
 
 ## 🚀 Getting Started
 

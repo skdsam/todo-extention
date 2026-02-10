@@ -2,7 +2,7 @@
   "name": "quick-notes",
   "displayName": "Quick Notes",
   "description": "A scratchpad for jotting down ideas, TODOs, and notes tied to your projects. Syncs across devices via GitHub.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "skdsam",
   "engines": {
     "vscode": "^1.85.0"
@@ -101,6 +101,11 @@
         "command": "quickNotes.syncNow",
         "title": "Sync Notes with GitHub",
         "icon": "$(sync)"
+      },
+      {
+        "command": "quickNotes.configureSync",
+        "title": "Configure GitHub Sync",
+        "icon": "$(settings-gear)"
       }
     ],
     "menus": {
@@ -124,6 +129,11 @@
           "command": "quickNotes.syncNow",
           "when": "view == quickNotesView",
           "group": "navigation@4"
+        },
+        {
+          "command": "quickNotes.configureSync",
+          "when": "view == quickNotesView",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [

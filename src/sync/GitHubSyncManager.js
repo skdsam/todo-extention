@@ -207,6 +207,10 @@ class GitHubSyncManager {
             this._onSyncStatusChanged.fire('synced');
         } catch (err) {
             this._onSyncStatusChanged.fire('error');
+            // Check for conflict (409) which means SHA is out of date
+            if (err.message.includes('409')) {
+                err.isConflict = true;
+            }
             console.error('GitHubSync push failed:', err.message);
             throw err;
         } finally {
@@ -235,8 +239,8 @@ class GitHubSyncManager {
         ]);
 
         for (const projectId of allProjectIds) {
-            const localProject = localData.projects?. [projectId];
-            const remoteProject = remoteData.projects?. [projectId];
+            const localProject = localData.projects?.[projectId];
+            const remoteProject = remoteData.projects?.[projectId];
 
             if (localProject && remoteProject) {
                 // Both exist — merge notes
@@ -261,8 +265,8 @@ class GitHubSyncManager {
         ]);
 
         for (const projectId of allArchivedIds) {
-            const localArchived = localData.archivedProjects?. [projectId];
-            const remoteArchived = remoteData.archivedProjects?. [projectId];
+            const localArchived = localData.archivedProjects?.[projectId];
+            const remoteArchived = remoteData.archivedProjects?.[projectId];
 
             if (localArchived && remoteArchived) {
                 merged.archivedProjects[projectId] = {
@@ -311,12 +315,24 @@ class GitHubSyncManager {
 
     /**
      * Full sync: pull remote, merge with local, push result, return merged data.
+     * Retries once on 409 conflict.
      */
     async sync(localData) {
-        const remoteData = await this.pull();
-        const merged = this.mergeData(localData, remoteData);
-        await this.push(merged);
-        return merged;
+        try {
+            const remoteData = await this.pull();
+            const merged = this.mergeData(localData, remoteData);
+            await this.push(merged);
+            return merged;
+        } catch (err) {
+            if (err.isConflict) {
+                // Retry once: pull again to get new SHA and content, then merge and push
+                const remoteData = await this.pull();
+                const merged = this.mergeData(localData, remoteData);
+                await this.push(merged);
+                return merged;
+            }
+            throw err;
+        }
     }
 
     get lastSyncTime() {

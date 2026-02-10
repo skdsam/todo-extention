@@ -11,6 +11,9 @@ const {
 const {
     GitHubSyncManager
 } = require('./sync/GitHubSyncManager');
+const {
+    SyncPanel
+} = require('./panels/SyncPanel');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -21,6 +24,9 @@ async function activate(context) {
     try {
         // Initialize the data manager (uses VS Code sync-compatible globalState)
         const dataManager = new NotesDataManager(context);
+        
+        // Register keys for VS Code Settings Sync
+        context.globalState.setKeysForSync(['quickNotes.data']);
 
         // Initialize GitHub sync manager
         const syncManager = new GitHubSyncManager(context);
@@ -324,13 +330,20 @@ async function activate(context) {
                 }
             }),
 
+            vscode.commands.registerCommand('quickNotes.configureSync', () => {
+                SyncPanel.createOrShow(context.extensionUri);
+            }),
+
             vscode.commands.registerCommand('quickNotes.syncNow', async () => {
                 if (!syncManager.isConfigured()) {
                     const action = await vscode.window.showWarningMessage(
-                        'GitHub sync is not configured. Set your repo URL and token in settings.',
+                        'GitHub sync is not configured. Setup your repo URL and token in the sync panel.',
+                        'Configure Sync',
                         'Open Settings'
                     );
-                    if (action === 'Open Settings') {
+                    if (action === 'Configure Sync') {
+                        vscode.commands.executeCommand('quickNotes.configureSync');
+                    } else if (action === 'Open Settings') {
                         vscode.commands.executeCommand(
                             'workbench.action.openSettings',
                             'quickNotes.sync'
