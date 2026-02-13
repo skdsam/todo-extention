@@ -24,7 +24,7 @@ async function activate(context) {
     try {
         // Initialize the data manager (uses VS Code sync-compatible globalState)
         const dataManager = new NotesDataManager(context);
-        
+
         // Register keys for VS Code Settings Sync
         context.globalState.setKeysForSync(['quickNotes.data']);
 
@@ -119,6 +119,36 @@ async function activate(context) {
                     }
                 } catch (err) {
                     vscode.window.showErrorMessage(`Failed to add note: ${err.message}`);
+                }
+            }),
+
+            vscode.commands.registerCommand('quickNotes.addProject', async () => {
+                try {
+                    const folder = await vscode.window.showOpenDialog({
+                        canSelectFiles: false,
+                        canSelectFolders: true,
+                        canSelectMany: false,
+                        openLabel: 'Add Project'
+                    });
+
+                    if (folder && folder[0]) {
+                        const path = folder[0].fsPath;
+                        const name = path.split(/[\\/]/).pop();
+                        const id = Buffer.from(path).toString('base64').replace(/[/+=]/g, '_');
+
+                        dataManager.ensureProject(id, {
+                            name,
+                            path,
+                            icon: 'folder',
+                            color: 'charts.blue'
+                        });
+
+                        await quickNotesProvider.refreshProjects();
+                        quickNotesProvider.refresh();
+                        vscode.window.showInformationMessage(`Project "${name}" added!`);
+                    }
+                } catch (err) {
+                    vscode.window.showErrorMessage(`Failed to add project: ${err.message}`);
                 }
             }),
 

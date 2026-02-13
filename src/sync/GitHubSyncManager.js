@@ -20,9 +20,8 @@ class GitHubSyncManager {
      */
     isConfigured() {
         const config = vscode.workspace.getConfiguration('quickNotes.sync');
-        const token = config.get('token', '');
         const repoUrl = config.get('repoUrl', '');
-        return token.length > 0 && repoUrl.length > 0;
+        return repoUrl.length > 0;
     }
 
     /**
@@ -43,19 +42,18 @@ class GitHubSyncManager {
     }
 
     /**
-     * Get the configured PAT
-     */
-    _getToken() {
-        const config = vscode.workspace.getConfiguration('quickNotes.sync');
-        return config.get('token', '');
-    }
-
-    /**
      * Make an HTTPS request to the GitHub API
      */
-    _apiRequest(method, path, body = null) {
+    async _apiRequest(method, path, body = null) {
+        const session = await vscode.authentication.getSession('github', ['repo'], {
+            createIfNone: true
+        });
+        if (!session) {
+            throw new Error('Authentication cancelled');
+        }
+        const token = session.accessToken;
+
         return new Promise((resolve, reject) => {
-            const token = this._getToken();
             const options = {
                 hostname: 'api.github.com',
                 path: path,
@@ -100,7 +98,8 @@ class GitHubSyncManager {
                             const parsed = JSON.parse(data);
                             errorMsg += `: ${parsed.message || ''}`;
                         } catch {
-                            /* ignore parse error */ }
+                            /* ignore parse error */
+                        }
                         reject(new Error(errorMsg));
                     }
                 });
@@ -239,8 +238,8 @@ class GitHubSyncManager {
         ]);
 
         for (const projectId of allProjectIds) {
-            const localProject = localData.projects?.[projectId];
-            const remoteProject = remoteData.projects?.[projectId];
+            const localProject = localData.projects?. [projectId];
+            const remoteProject = remoteData.projects?. [projectId];
 
             if (localProject && remoteProject) {
                 // Both exist — merge notes
@@ -265,8 +264,8 @@ class GitHubSyncManager {
         ]);
 
         for (const projectId of allArchivedIds) {
-            const localArchived = localData.archivedProjects?.[projectId];
-            const remoteArchived = remoteData.archivedProjects?.[projectId];
+            const localArchived = localData.archivedProjects?. [projectId];
+            const remoteArchived = remoteData.archivedProjects?. [projectId];
 
             if (localArchived && remoteArchived) {
                 merged.archivedProjects[projectId] = {

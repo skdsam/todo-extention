@@ -2,8 +2,9 @@
   "name": "quick-notes",
   "displayName": "Quick Notes",
   "description": "A scratchpad for jotting down ideas, TODOs, and notes tied to your projects. Syncs across devices via GitHub.",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "publisher": "skdsam",
+  "icon": "resources/todo.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -28,7 +29,7 @@
         {
           "id": "quickNotes",
           "title": "Quick Notes",
-          "icon": "resources/notes-icon.svg"
+          "icon": "resources/todo.png"
         }
       ]
     },
@@ -37,7 +38,7 @@
         {
           "id": "quickNotesView",
           "name": "Projects & Notes",
-          "icon": "resources/notes-icon.svg"
+          "icon": "resources/todo.png"
         }
       ]
     },
@@ -46,6 +47,11 @@
         "command": "quickNotes.addNote",
         "title": "Add Note",
         "icon": "$(add)"
+      },
+      {
+        "command": "quickNotes.addProject",
+        "title": "Add Project",
+        "icon": "$(new-folder)"
       },
       {
         "command": "quickNotes.editNote",
@@ -110,6 +116,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "quickNotes.addProject",
+          "when": "view == quickNotesView",
+          "group": "navigation@0"
+        },
         {
           "command": "quickNotes.addNote",
           "when": "view == quickNotesView",
@@ -214,11 +225,7 @@
           "default": "https://github.com/skdsam/todo-extention-data",
           "description": "GitHub repository URL for syncing notes"
         },
-        "quickNotes.sync.token": {
-          "type": "string",
-          "default": "",
-          "description": "GitHub Personal Access Token (PAT) with repo scope for sync"
-        },
+
         "quickNotes.sync.autoSyncInterval": {
           "type": "number",
           "default": 5,

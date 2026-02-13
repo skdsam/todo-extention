@@ -23,17 +23,38 @@ class QuickNotesProvider {
             // Get projects from project-tracker
             const trackedProjects = await this.projectTracker.getProjects();
 
-            // Validate which projects still exist on disk
-            this.projects = trackedProjects.map(project => {
-                const exists = fs.existsSync(project.path);
-                return {
-                    ...project,
-                    id: this.generateProjectId(project.path),
-                    isStale: !exists
-                };
+            // Get existing projects from data manager (to keep manually added ones)
+            const storedData = this.dataManager.getData();
+            const storedProjects = storedData.projects || {};
+
+            // Map tracked projects to our format
+            const detectedProjects = trackedProjects.map(project => ({
+                ...project,
+                id: this.generateProjectId(project.path),
+                isStale: !fs.existsSync(project.path)
+            }));
+
+            // Create a map of all projects, preferring detected ones if they exist
+            // but keeping stored ones if they are manual additions
+            const allProjectsMap = new Map();
+
+            // Add stored projects first
+            Object.entries(storedProjects).forEach(([id, proj]) => {
+                allProjectsMap.set(id, {
+                    ...proj,
+                    id,
+                    isStale: !fs.existsSync(proj.path)
+                });
             });
 
-            // Sync with data manager to ensure all projects have entries
+            // Merge/Overwrite with detected projects
+            detectedProjects.forEach(proj => {
+                allProjectsMap.set(proj.id, proj);
+            });
+
+            this.projects = Array.from(allProjectsMap.values());
+
+            // Sync back to data manager to ensure all are persisted
             this.projects.forEach(project => {
                 this.dataManager.ensureProject(project.id, {
                     name: project.name,

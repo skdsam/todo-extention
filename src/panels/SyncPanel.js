@@ -5,9 +5,9 @@ class SyncPanel {
     static viewType = 'syncSettings';
 
     static createOrShow(extensionUri) {
-        const column = vscode.window.activeTextEditor
-            ? vscode.window.activeTextEditor.viewColumn
-            : undefined;
+        const column = vscode.window.activeTextEditor ?
+            vscode.window.activeTextEditor.viewColumn :
+            undefined;
 
         if (SyncPanel.currentPanel) {
             SyncPanel.currentPanel._panel.reveal(column);
@@ -17,8 +17,7 @@ class SyncPanel {
         const panel = vscode.window.createWebviewPanel(
             SyncPanel.viewType,
             'GitHub Sync Setup',
-            column || vscode.ViewColumn.One,
-            {
+            column || vscode.ViewColumn.One, {
                 enableScripts: true,
                 localResourceRoots: [extensionUri]
             }
@@ -37,35 +36,31 @@ class SyncPanel {
 
         this._panel.webview.onDidReceiveMessage(
             async message => {
-                switch (message.command) {
-                    case 'getToken':
-                        vscode.env.openExternal(vscode.Uri.parse(
-                            'https://github.com/settings/tokens/new?scopes=repo&description=Quick%20Notes%20VS%20Code%20Extension'
-                        ));
-                        return;
-                    case 'saveSettings':
-                        try {
-                            const config = vscode.workspace.getConfiguration('quickNotes.sync');
-                            await config.update('repoUrl', message.repoUrl, vscode.ConfigurationTarget.Global);
-                            await config.update('token', message.token, vscode.ConfigurationTarget.Global);
-                            await config.update('enabled', true, vscode.ConfigurationTarget.Global);
-                            
-                            vscode.window.showInformationMessage('Sync settings saved successfully!');
+                    switch (message.command) {
+
+                        case 'saveSettings':
+                            try {
+                                const config = vscode.workspace.getConfiguration('quickNotes.sync');
+                                await config.update('repoUrl', message.repoUrl, vscode.ConfigurationTarget.Global);
+                                // Token is no longer stored in config
+                                await config.update('enabled', true, vscode.ConfigurationTarget.Global);
+
+                                vscode.window.showInformationMessage('Sync settings saved successfully!');
+                                this._panel.dispose();
+
+                                // Trigger an initial sync check
+                                vscode.commands.executeCommand('quickNotes.syncNow');
+                            } catch (err) {
+                                vscode.window.showErrorMessage('Error saving settings: ' + err.message);
+                            }
+                            return;
+                        case 'cancel':
                             this._panel.dispose();
-                            
-                            // Trigger an initial sync check
-                            vscode.commands.executeCommand('quickNotes.syncNow');
-                        } catch (err) {
-                            vscode.window.showErrorMessage('Error saving settings: ' + err.message);
-                        }
-                        return;
-                    case 'cancel':
-                        this._panel.dispose();
-                        return;
-                }
-            },
-            null,
-            []
+                            return;
+                    }
+                },
+                null,
+                []
         );
     }
 
@@ -77,12 +72,11 @@ class SyncPanel {
     _update() {
         const config = vscode.workspace.getConfiguration('quickNotes.sync');
         const repoUrl = config.get('repoUrl', '');
-        const token = config.get('token', '');
 
-        this._panel.webview.html = this._getHtmlForWebview(repoUrl, token);
+        this._panel.webview.html = this._getHtmlForWebview(repoUrl);
     }
 
-    _getHtmlForWebview(repoUrl, token) {
+    _getHtmlForWebview(repoUrl) {
         return `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -237,6 +231,7 @@ class SyncPanel {
                     <div class="content-area">
                         <div class="info-box">
                             Sync your notes across devices by connecting to a GitHub repository. 
+                            You will be prompted to sign in with GitHub when you first sync.
                             Your data will be stored in a file named <code>notes.json</code> in the root of your repo.
                         </div>
 
@@ -246,14 +241,7 @@ class SyncPanel {
                             <span class="help-text">Create a repository first if you don't have one.</span>
                         </div>
                         
-                        <div class="field">
-                            <label for="token">Personal Access Token (PAT)</label>
-                            <input type="password" id="token" placeholder="ghp_xxxxxxxxxxxx" value="${token}">
-                            <div class="token-help">
-                                <span class="help-text">Requires <code>repo</code> scope.</span>
-                                <button class="btn-link" id="getTokenBtn">Get a token from GitHub →</button>
-                            </div>
-                        </div>
+
                     </div>
 
                     <div class="footer">
@@ -265,23 +253,17 @@ class SyncPanel {
                 <script>
                     const vscode = acquireVsCodeApi();
 
-                    document.getElementById('getTokenBtn').addEventListener('click', () => {
-                        vscode.postMessage({ command: 'getToken' });
-                    });
-
                     document.getElementById('saveBtn').addEventListener('click', () => {
                         const repoUrl = document.getElementById('repoUrl').value.trim();
-                        const token = document.getElementById('token').value.trim();
                         
-                        if (!repoUrl || !token) {
-                            alert('Both Repository URL and Token are required.');
+                        if (!repoUrl) {
+                            alert('Repository URL is required.');
                             return;
                         }
 
                         vscode.postMessage({
                             command: 'saveSettings',
-                            repoUrl,
-                            token
+                            repoUrl
                         });
                     });
 
@@ -294,4 +276,6 @@ class SyncPanel {
     }
 }
 
-module.exports = { SyncPanel };
+module.exports = {
+    SyncPanel
+};
