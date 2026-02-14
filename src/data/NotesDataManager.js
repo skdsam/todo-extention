@@ -35,12 +35,22 @@ class NotesDataManager {
     async saveData(data) {
         await this.context.globalState.update(this.STORAGE_KEY, data);
 
-        // Trigger background push to GitHub (fire-and-forget)
+        // Trigger background sync to GitHub (pull -> merge -> push)
         if (this.syncManager && this.syncManager.isConfigured()) {
-            this.syncManager.push(data).catch(err => {
-                console.error('Background sync push failed:', err.message);
-            });
+            try {
+                const merged = await this.syncManager.sync(data);
+                // If the sync resulted in a merge with remote data, update local state
+                if (JSON.stringify(merged) !== JSON.stringify(data)) {
+                    await this.importData(merged);
+                }
+                return merged;
+            } catch (err) {
+                console.error('Background sync failed:', err.message);
+                // We don't throw here to keep UI responsive, but it's logged
+                return data;
+            }
         }
+        return data;
     }
 
     /**
@@ -60,9 +70,27 @@ class NotesDataManager {
     /**
      * Ensure a project exists in our data store
      */
-    ensureProject(projectId, projectInfo) {
+    async ensureProject(projectId, projectInfo) {
         const data = this.getData();
+        this._updateProjectInData(data, projectId, projectInfo);
+        await this.saveData(data);
+    }
 
+    /**
+     * Ensure multiple projects exist (batch update to avoid multiple syncs)
+     */
+    async batchEnsureProjects(projectSpecs) {
+        const data = this.getData();
+        for (const spec of projectSpecs) {
+            this._updateProjectInData(data, spec.id, spec.projectInfo);
+        }
+        await this.saveData(data);
+    }
+
+    /**
+     * Internal helper to update project info in a data object
+     */
+    _updateProjectInData(data, projectId, projectInfo) {
         if (!data.projects[projectId]) {
             data.projects[projectId] = {
                 ...projectInfo,
@@ -70,7 +98,6 @@ class NotesDataManager {
                 createdAt: new Date().toISOString()
             };
         } else {
-            // Update project info but keep notes
             const existingNotes = data.projects[projectId].notes;
             data.projects[projectId] = {
                 ...data.projects[projectId],
@@ -78,7 +105,6 @@ class NotesDataManager {
                 notes: existingNotes
             };
         }
-        this.saveData(data);
     }
 
     /**
@@ -109,7 +135,8 @@ class NotesDataManager {
 
         const note = {
             id: this.generateId(),
-            content: noteData.content,
+            title: noteData.title || noteData.tag || 'Untitled',
+            description: noteData.description || noteData.content || '',
             priority: noteData.priority || 'medium',
             completed: false,
             createdAt: new Date().toISOString(),

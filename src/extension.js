@@ -14,6 +14,9 @@ const {
 const {
     SyncPanel
 } = require('./panels/SyncPanel');
+const {
+    NoteEditorPanel
+} = require('./panels/NoteEditorPanel');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -65,22 +68,58 @@ async function activate(context) {
         }
 
         // Set up auto-sync interval
-        const config = vscode.workspace.getConfiguration('quickNotes.sync');
-        const intervalMinutes = config.get('autoSyncInterval', 5);
         let autoSyncTimer = null;
 
-        if (syncManager.isConfigured() && intervalMinutes > 0) {
-            autoSyncTimer = setInterval(async () => {
+        function startAutoSync() {
+            if (autoSyncTimer) {
+                clearInterval(autoSyncTimer);
+                autoSyncTimer = null;
+            }
+
+            const config = vscode.workspace.getConfiguration('quickNotes.sync');
+            const intervalMinutes = config.get('autoSyncInterval', 5);
+
+            if (syncManager.isConfigured() && intervalMinutes > 0) {
+                autoSyncTimer = setInterval(async () => {
+                    try {
+                        const localData = dataManager.exportData();
+                        const merged = await syncManager.sync(localData);
+                        await dataManager.importData(merged);
+                        quickNotesProvider.refresh();
+                    } catch (err) {
+                        console.error('Quick Notes: Auto-sync failed:', err.message);
+                    }
+                }, intervalMinutes * 60 * 1000);
+            }
+        }
+
+        startAutoSync();
+
+        // Listen for configuration changes to update auto-sync or initial configuration
+        context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('quickNotes.sync')) {
+                startAutoSync();
+                // If it was just configured, trigger a sync
+                if (syncManager.isConfigured() && !syncStatusBar.text.includes('Synced')) {
+                    vscode.commands.executeCommand('quickNotes.syncNow');
+                }
+            }
+        }));
+
+        // Sync when the window gains focus — ensures data is fresh when switching devices
+        context.subscriptions.push(vscode.window.onDidChangeWindowState(async (state) => {
+            if (state.focused && syncManager.isConfigured()) {
+                console.log('Quick Notes: Window focused, checking for updates...');
                 try {
                     const localData = dataManager.exportData();
                     const merged = await syncManager.sync(localData);
                     await dataManager.importData(merged);
                     quickNotesProvider.refresh();
                 } catch (err) {
-                    console.error('Quick Notes: Auto-sync failed:', err.message);
+                    console.error('Quick Notes: Focus-triggered sync failed:', err.message);
                 }
-            }, intervalMinutes * 60 * 1000);
-        }
+            }
+        }));
 
         // Initialize project tracker integration
         const projectTracker = new ProjectTracker();
@@ -97,29 +136,9 @@ async function activate(context) {
         // Register commands
         const commands = [
             vscode.commands.registerCommand('quickNotes.addNote', async (item) => {
-                try {
-                    const projectId = item?.projectId || await selectProject(quickNotesProvider);
-                    if (!projectId) return;
-
-                    const content = await vscode.window.showInputBox({
-                        prompt: 'Enter note content',
-                        placeHolder: 'What needs to be done?'
-                    });
-
-                    if (content) {
-                        const config = vscode.workspace.getConfiguration('quickNotes');
-                        const defaultPriority = config.get('defaultPriority', 'medium');
-
-                        await dataManager.addNote(projectId, {
-                            content,
-                            priority: defaultPriority
-                        });
-                        quickNotesProvider.refresh();
-                        vscode.window.showInformationMessage('Note added successfully!');
-                    }
-                } catch (err) {
-                    vscode.window.showErrorMessage(`Failed to add note: ${err.message}`);
-                }
+                const projectId = item?.projectId || await selectProject(quickNotesProvider);
+                if (!projectId) return;
+                NoteEditorPanel.createOrShow(context.extensionUri, dataManager, quickNotesProvider, projectId);
             }),
 
             vscode.commands.registerCommand('quickNotes.addProject', async () => {
@@ -136,7 +155,7 @@ async function activate(context) {
                         const name = path.split(/[\\/]/).pop();
                         const id = Buffer.from(path).toString('base64').replace(/[/+=]/g, '_');
 
-                        dataManager.ensureProject(id, {
+                        await dataManager.ensureProject(id, {
                             name,
                             path,
                             icon: 'folder',
@@ -153,26 +172,14 @@ async function activate(context) {
             }),
 
             vscode.commands.registerCommand('quickNotes.editNote', async (item) => {
-                if (!item?.noteId) return;
-
-                try {
-                    const currentNote = dataManager.getNote(item.projectId, item.noteId);
-                    if (!currentNote) return;
-
-                    const content = await vscode.window.showInputBox({
-                        prompt: 'Edit note content',
-                        value: currentNote.content
-                    });
-
-                    if (content !== undefined) {
-                        await dataManager.updateNote(item.projectId, item.noteId, {
-                            content
-                        });
-                        quickNotesProvider.refresh();
-                    }
-                } catch (err) {
-                    vscode.window.showErrorMessage(`Failed to edit note: ${err.message}`);
-                }
+                if (!item?.noteId || !item?.projectId) return;
+                NoteEditorPanel.createOrShow(
+                    context.extensionUri,
+                    dataManager,
+                    quickNotesProvider,
+                    item.projectId,
+                    item.noteId
+                );
             }),
 
             vscode.commands.registerCommand('quickNotes.deleteNote', async (item) => {
@@ -346,7 +353,7 @@ async function activate(context) {
                             quickNotesProvider.refresh();
                         } else if (action === 'View Notes') {
                             const project = archived[selected.projectId];
-                            const notesList = project.notes?.map(n => `• ${n.content}`).join('\n') || 'No notes';
+                            const notesList = project.notes?.map(n => `• ${n.title || n.tag || n.content}`).join('\n') || 'No notes';
                             vscode.window.showInformationMessage(notesList, {
                                 modal: true
                             });

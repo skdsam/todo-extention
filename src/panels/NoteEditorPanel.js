@@ -47,14 +47,14 @@ class NoteEditorPanel {
                         try {
                             if (this._noteId) {
                                 await this._dataManager.updateNote(this._projectId, this._noteId, {
-                                    tag: message.tag,
-                                    content: message.content,
+                                    title: message.title,
+                                    description: message.description,
                                     priority: message.priority
                                 });
                             } else {
                                 await this._dataManager.addNote(this._projectId, {
-                                    tag: message.tag,
-                                    content: message.content,
+                                    title: message.title,
+                                    description: message.description,
                                     priority: message.priority
                                 });
                             }
@@ -89,8 +89,8 @@ class NoteEditorPanel {
     }
 
     _getHtmlForWebview(note) {
-        const tag = note ? note.tag : '';
-        const content = note ? note.content : '';
+        const title = note ? (note.title || note.tag || '') : '';
+        const description = note ? (note.description || note.content || '') : '';
         const priority = note ? note.priority : 'medium';
 
         return `<!DOCTYPE html>
@@ -254,8 +254,8 @@ class NoteEditorPanel {
                     
                     <div class="content-area">
                         <div class="field">
-                            <label for="tag">Tag / Category</label>
-                            <input type="text" id="tag" placeholder="e.g. TODO, BUG, IDEA, REFACTOR" value="${tag}">
+                            <label for="title">Title</label>
+                            <input type="text" id="title" placeholder="What needs to be done?" value="${title}">
                         </div>
                         
                         <div class="field">
@@ -268,8 +268,8 @@ class NoteEditorPanel {
                         </div>
 
                         <div class="field">
-                            <label for="content">Note Content</label>
-                            <textarea id="content" placeholder="Type your detailed notes here...">${content}</textarea>
+                            <label for="description">Description</label>
+                            <textarea id="description" placeholder="Type your detailed notes here...">${description}</textarea>
                         </div>
                     </div>
 
@@ -294,18 +294,18 @@ class NoteEditorPanel {
 
                     // Save
                     document.getElementById('saveBtn').addEventListener('click', () => {
-                        const tag = document.getElementById('tag').value;
-                        const content = document.getElementById('content').value;
+                        const title = document.getElementById('title').value;
+                        const description = document.getElementById('description').value;
                         
-                        if (!tag || !content) {
-                            alert('Tag and Content are required');
+                        if (!title || !description) {
+                            alert('Title and Description are required');
                             return;
                         }
 
                         vscode.postMessage({
                             command: 'saveNote',
-                            tag,
-                            content,
+                            title,
+                            description,
                             priority: selectedPriority
                         });
                     });
@@ -315,9 +315,9 @@ class NoteEditorPanel {
                         vscode.postMessage({ command: 'cancel' });
                     });
 
-                    // Focus tag input on load
+                    // Focus title input on load
                     window.onload = () => {
-                        document.getElementById('tag').focus();
+                        document.getElementById('title').focus();
                     };
                 </script>
             </body>

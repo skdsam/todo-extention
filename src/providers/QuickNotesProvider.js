@@ -55,14 +55,17 @@ class QuickNotesProvider {
             this.projects = Array.from(allProjectsMap.values());
 
             // Sync back to data manager to ensure all are persisted
-            this.projects.forEach(project => {
-                this.dataManager.ensureProject(project.id, {
+            const projectSpecs = this.projects.map(project => ({
+                id: project.id,
+                projectInfo: {
                     name: project.name,
                     path: project.path,
                     icon: project.icon,
                     color: project.color
-                });
-            });
+                }
+            }));
+            
+            await this.dataManager.batchEnsureProjects(projectSpecs);
 
         } catch (error) {
             console.error('Failed to refresh projects:', error);
@@ -157,7 +160,7 @@ class QuickNotesProvider {
 
         return notes.map(note => {
             const item = new vscode.TreeItem(
-                note.content,
+                note.title || note.tag || note.content,
                 vscode.TreeItemCollapsibleState.None
             );
 
@@ -214,7 +217,9 @@ class QuickNotesProvider {
                 case 'createdAt':
                     return new Date(b.createdAt) - new Date(a.createdAt);
                 case 'alphabetical':
-                    return a.content.localeCompare(b.content);
+                    const labelA = a.title || a.tag || a.content || '';
+                    const labelB = b.title || b.tag || b.content || '';
+                    return labelA.localeCompare(labelB);
                 default:
                     return 0;
             }
@@ -223,7 +228,8 @@ class QuickNotesProvider {
 
     formatNoteTooltip(note) {
         const lines = [
-            note.content,
+            note.title || note.tag || '',
+            note.description || note.content || '',
             '',
             `Priority: ${note.priority}`,
             `Status: ${note.completed ? 'Completed' : 'Pending'}`,

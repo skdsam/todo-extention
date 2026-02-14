@@ -230,9 +230,9 @@ class SyncPanel {
                     
                     <div class="content-area">
                         <div class="info-box">
-                            Sync your notes across devices by connecting to a GitHub repository. 
-                            You will be prompted to sign in with GitHub when you first sync.
-                            Your data will be stored in a file named <code>notes.json</code> in the root of your repo.
+                            Sync your notes across devices securely using a GitHub repository. 
+                            <b>New:</b> Your notes now sync automatically when you switch between devices or focus the window.
+                            The extension also merges changes to prevent data loss.
                         </div>
 
                         <div class="field">
